@@ -57,35 +57,71 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   /**
    * Initialization
    */
-  if (!is_initialized_) {
+
+  if (!is_initialized_) 
+  {
     /**
      * TODO: Initialize the state ekf_.x_ with the first measurement.
      * TODO: Create the covariance matrix.
      * You'll need to convert radar from polar to cartesian coordinates.
      */
-
     // first measurement
     cout << "EKF: " << endl;
     ekf_.x_ = VectorXd(4);
     ekf_.x_ << 1, 1, 1, 1;
-
-    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+    float px_;
+    float py_;
+    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) 
+    {
       // TODO: Convert radar from polar to cartesian coordinates 
       //         and initialize state.
       float ro_=measurement_pack.raw_measurements_(0);
       float theta_=measurement_pack.raw_measurements_(1); 
-      //float ro_dot_=measurement_pack.raw_measurements_(2);
-      float x_=ro_*cos(theta_);
-      float y_=ro_*sin(theta_);
-      ekf_.x_ << x_, y_;
+      px_=ro_*cos(theta_);
+      py_=ro_*sin(theta_);
+      //std::cout << "rmiucic RADAR initialized ekf_.x_" << std::endl;
     }
-    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) 
+    {
       // TODO: Initialize state.
-      ekf_.x_ << measurement_pack.raw_measurements_(0),
-                 measurement_pack.raw_measurements_(1);
+  
+        px_=measurement_pack.raw_measurements_(0);
+        py_=measurement_pack.raw_measurements_(1);
+      //std::cout << "rmiucic LIDAR initialized ekf_.x_" << std::endl;
+    }
+    // small px_, py_
+    if(fabs(px_) < 0.0001)
+    {
+        px_= 0.1;
     }
 
+    if(fabs(py_) < 0.0001)
+    {
+        py_= 0.1;
+    }
+    ekf_.x_ << px_, py_,0,0;
+    ekf_.P_ = MatrixXd(4, 4);
+    ekf_.P_ << 1, 0, 0, 0,
+              0, 1, 0, 0,
+              0, 0, 100, 0,
+              0, 0, 0, 100;
+
+    	//measurement matrix
+    ekf_.H_ = MatrixXd(2, 4);
+    ekf_.H_ << 1, 0, 0, 0,
+               0, 1, 0, 0;
+
+    //the initial transition matrix F_
+	  ekf_.F_ = MatrixXd(4, 4);
+	  ekf_.F_ << 1, 0, 0.5, 0,
+			         0, 1, 0, 0.5,
+			         0, 0, 1, 0,
+			         0, 0, 0, 1;
+      
+    previous_timestamp_ = measurement_pack.timestamp_;
     // done initializing, no need to predict or update
+    //cout << "rmiucic ekf_.x initialized to  = " << ekf_.x_ << endl;
+
     is_initialized_ = true;
     return;
   }
@@ -106,7 +142,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   float dt_3 = dt_2 * dt;
   float dt_4 = dt_3 * dt;
 
-  ekf_.F_=MatrixXd(4, 4);
+  //ekf_.F_=MatrixXd(4, 4);
   ekf_.F_(0, 2) = dt;
   ekf_.F_(1, 3) = dt;
 
@@ -119,8 +155,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
          dt_3/2*noise_ax, 0, dt_2*noise_ax, 0,
          0, dt_3/2*noise_ay, 0, dt_2*noise_ay;
 
-
   ekf_.Predict();
+  //std::cout << "rmiucic after Predict ekf_.x_ = " << ekf_.x_ << endl;
 
   /**
    * Update
@@ -131,12 +167,29 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    * - Use the sensor type to perform the update step.
    * - Update the state and covariance matrices.
    */
-
-  if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+  bool enable_lidar=true;
+  bool enable_radar=true;
+  if (enable_radar && measurement_pack.sensor_type_ == MeasurementPackage::RADAR) 
+  {
     // TODO: Radar updates
+    //std::cout << "rmiucic before Radar update ekf_.x_ = " << ekf_.x_ << endl;
+    ekf_.R_=R_radar_;
+    ekf_.H_=tools.CalculateJacobian(ekf_.x_);
+    if (ekf_.H_.isZero(0))
+    {
+        cout << "rmiucic Jacobian is zero" << endl;
+        return;
+    }
 
-  } else {
+    ekf_.UpdateEKF(measurement_pack.raw_measurements_);
+  } 
+  else if (enable_lidar && measurement_pack.sensor_type_ == MeasurementPackage::LASER)
+  {
     // TODO: Laser updates
+    //std::cout << "rmiucic before LIDAR update ekf_.x_ = " << ekf_.x_ << endl;
+    ekf_.R_=R_laser_;
+    ekf_.H_=H_laser_;
+    ekf_.Update(measurement_pack.raw_measurements_);
 
   }
 
