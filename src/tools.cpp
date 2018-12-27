@@ -1,5 +1,5 @@
-#include "tools.h"
 #include <iostream>
+#include "tools.h"
 
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
@@ -52,43 +52,33 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 
 }
 
+
 MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
-  /**
-   * TODO:
-   * Calculate a Jacobian here.
-   */
-  // recover state parameters
-  float px=x_state(0);
-  float py=x_state(1);
-  float vx=x_state(2);
-  float vy=x_state(3);
-  //Calculate H Jacobian
-  // check division by zero
-  float px2py2=px*px+py*py;
-  if(0==px2py2)
-  {
-   std::cout << "rmiucic ERROR computing Jacobian" << std::endl;
-  }
-  // compute the Jacobian matrix
-  float H00=px/sqrt(px2py2);
-  float H01=py/sqrt(px2py2);
-  float H02=0;
-  float H03=0;
-
-  float H10=-py/px2py2;
-  float H11=px/px2py2;
-  float H12=0;
-  float H13=0;
-
-  float H20=py*(vx*py-vy*px)/pow(px2py2,3/2);
-  float H21=px*(vy*px-vx*py)/pow(px2py2,3/2);
-  float H22=px/sqrt(px2py2);
-  float H23=py/sqrt(px2py2);
-  
+    
   MatrixXd Hj(3,4);
-  Hj << H00, H01, H02, H03,
-        H10, H11, H12, H13,
-        H20, H21, H22, H23;
+    
+  //recover state parameters
+  float px = x_state(0);
+  float py = x_state(1);
+  float vx = x_state(2);
+  float vy = x_state(3);
+    
+  // Some re-used equations for matrix below
+  float c1 = px * px + py * py;
+  //check division by zero
+  if(c1 < .00001) {
+    px = .001;
+    py = .001;
+    c1 = px * px + py * py;
+  }
+  float c2 = sqrt(c1);
+  float c3 = c1 * c2;
+    
+  //compute the Jacobian matrix
+  Hj << px/c2, py/c2, 0, 0,
+        -py/c1, px/c1, 0, 0,
+        (py*(vx*py - vy*px))/c3, (px*(vy*px - vx*py))/c3, px/c2, py/c2;
+    
+  //return the matrix
   return Hj;
-
 }

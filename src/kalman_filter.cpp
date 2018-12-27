@@ -1,5 +1,6 @@
 #include "kalman_filter.h"
 #include <iostream>
+#include <math.h>
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -72,6 +73,21 @@ void KalmanFilter::Update(const VectorXd &z) {
 
 	P_ = (I - K * H_) * P_;
   //std::cout << "rmiucic Update P_=" << P_ << std::endl;
+
+  //VectorXd z_pred = H_ * x_;
+  //VectorXd y = z - z_pred;
+  //MatrixXd Ht = H_.transpose();
+  //MatrixXd S = H_ * P_ * Ht + R_;
+  //MatrixXd Si = S.inverse();
+  //MatrixXd PHt = P_ * Ht;
+  //MatrixXd K = PHt * Si;
+  //  
+  ////new estimate
+  //x_ = x_ + (K * y);
+  //long x_size = x_.size();
+  //MatrixXd I = MatrixXd::Identity(x_size, x_size);
+  //P_ = (I - K * H_) * P_;
+
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
@@ -79,26 +95,26 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
    * TODO: update the state by using Extended Kalman Filter equations
    */
   // recover state parameters
-  float px=x_(0);
-  float py=x_(1);
-  float vx=x_(2);
-  float vy=x_(3);
+  double px=x_(0);
+  double py=x_(1);
+  double vx=x_(2);
+  double vy=x_(3);
   //Calculate h 
-  MatrixXd hj(3,1);
-  float rho = sqrt(px*px+py*py);
-  float phi = 0;
-  float rho_dot = 0;
+  VectorXd hj(3);
+  double rho = sqrt(px*px+py*py);
+  double phi = 0;
+  double rho_dot = 0;
   if (fabs(px) < 0.0001 or fabs(py) < 0.0001)
   {
     if(fabs(px) < 0.0001)
     {
       std::cout << "rmiucic UpdateEKF px is small" << std::endl;
-      px = 0.0001;
+      px += 0.001;
     }
     if(fabs(py) < 0.0001)
     {
       std::cout << "rmiucic UpdateEKF py is small" << std::endl;
-      py = 0.0001;
+      py += 0.001;
     }
     rho = sqrt(px*px+py*py);
     phi = 0;
@@ -122,13 +138,13 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   bool not_in_pi_bounds=true;
   while(not_in_pi_bounds)
   {
-    if(y(1)>3.141592653)
+    if(y(1)>M_PI)
     {
-      y(1)=y(1)-2*3.141592653;
+      y(1)=y(1)-2*M_PI;
     }
-    else if(y(1)<-3.141592653)
+    else if(y(1)<-M_PI)
     {
-      y(1)=y(1)+2*3.141592653;
+      y(1)=y(1)+2*M_PI;
     }
     else
     {
